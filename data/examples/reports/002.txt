@@ -1,0 +1,6 @@
+EXAM: PET/CT whole body
+
+IMPRESSION:
+- Hypermetabolic mass in the sigmoid colon, compatible with primary.
+- Multiple mildly enlarged mesenteric nodes, largest short axis 8 mm.
+- No distant FDG-avid metastasis identified.

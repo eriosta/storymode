@@ -1,0 +1,31 @@
+{
+  "summary": {
+    "modality": "PETCT",
+    "body_region": "WB",
+    "tn_stage_reported": null,
+    "metastasis_present": false,
+    "total_lesion_count": 2
+  },
+  "lesions": [
+    {
+      "lesion_id": "L1",
+      "finding_type": "primary",
+      "body_site": "colon sigmoid",
+      "is_node": false,
+      "size_mm": null,
+      "certainty": "present",
+      "evidence_span": "Hypermetabolic mass in the sigmoid colon, compatible with primary."
+    },
+    {
+      "lesion_id": "L2",
+      "finding_type": "ln",
+      "body_site": "mesentery",
+      "is_node": true,
+      "node_station": null,
+      "measure_axis": "short_axis",
+      "size_mm": 8,
+      "certainty": "present",
+      "evidence_span": "Multiple mildly enlarged mesenteric nodes, largest short axis 8 mm."
+    }
+  ]
+}
