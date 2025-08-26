@@ -19,7 +19,7 @@ IMPRESSION:
         "json": {
             "summary": {
                 "modality": "CT", "body_region": "CAP",
-                "tn_stage_reported": null, "metastasis_present": True, "total_lesion_count": 3
+                "tn_stage_reported": None, "metastasis_present": True, "total_lesion_count": 3
             },
             "lesions": [
                 {

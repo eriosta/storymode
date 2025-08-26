@@ -1,83 +1,183 @@
-# StoryMode
+# StoryMode: Radiology Report Information Extraction
 
-Zero-/few-shot pipeline to extract lesion-level, TNM-relevant facts from (synthetic) radiology reports using **strict JSON schemas**, **deterministic prompting**, and **constrained decoding**. No fine-tuning required to start.
+A flexible framework for extracting structured information from radiology reports using open-source language models.
 
-## Why this repo?
-- Enforces a single source of truth schema (Pydantic + JSON Schema).
-- Deterministic decoding with schema validation + repair loop.
-- Post-processing for unit normalization (mm), ontology hooks, and span grounding.
-- Evaluation harness with entity F1, numeric error, JSON-validity, hallucination/omission rates.
-- CLI to run extraction on a folder of reports and to evaluate against references.
+## Features
 
-## Install
+- **Multi-Model Support**: Works with local open-source models via vLLM and direct transformers inference
+- **Structured Output**: Extracts lesions, lymph nodes, and metastases with standardized JSON schema
+- **Biomedical Models**: Pre-configured support for medical-domain models like BioMistral and Meditron
+- **Deterministic Generation**: Configurable temperature and sampling parameters for reproducible results
+- **Validation**: JSON schema validation with automatic repair for malformed outputs
 
-### Option 1: Using Conda (Recommended)
+## Supported Models
+
+### Open-Source Models (Primary)
+
+- **Mistral 7B Instruct** - Fast, compact baseline for zero/few-shot extraction
+- **Mixtral 8×7B Instruct** - MoE architecture with higher capacity
+- **Qwen2.5-7B/14B Instruct** - Strong reasoning with long context windows
+- **BioMistral-7B** - Biomedical specialization of Mistral
+- **Meditron-7B** - Medical-pretrained variant
+
+
+
+## Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd storymode
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   conda env create -f environment.yml
+   conda activate storymode
+   ```
+
+3. **For GPU inference** (recommended):
+   ```bash
+   # Install CUDA toolkit if not already installed
+   # vLLM will automatically use available GPUs
+   ```
+
+## Quick Start
+
+### List Available Models
 ```bash
-# Create and activate conda environment
-conda env create -f environment.yml
-conda activate storymode
+python -m storymode list-models
 ```
 
-### Option 2: Using Python venv
+### Extract Information from Reports
 ```bash
-python -m venv .venv && source .venv/bin/activate  # (Windows: .venv\Scripts\activate)
-pip install -r requirements.txt
+# Using Mistral 7B (local inference)
+python -m storymode extract \
+    --in-dir data/reports \
+    --out-dir results \
+    --model mistral-7b-instruct
+
+# Using Qwen2.5-14B with custom parameters
+python -m storymode extract \
+    --in-dir data/reports \
+    --out-dir results \
+    --model qwen2.5-14b-instruct \
+    --temperature 0.2 \
+    --max-tokens 1500
+
+
 ```
 
-### Installing Conda
-If you don't have conda installed, you can install Miniconda from [https://docs.conda.io/en/latest/miniconda.html](https://docs.conda.io/en/latest/miniconda.html) or Anaconda from [https://www.anaconda.com/products/distribution](https://www.anaconda.com/products/distribution).
-
-## Conda Environment Setup
-
-### 1. Create the Environment
+### Evaluate Results
 ```bash
-conda env create -f environment.yml
+python -m storymode eval \
+    --pred-dir results \
+    --ref-dir data/examples/labels
 ```
 
-### 2. Activate the Environment
-```bash
-conda activate storymode
+## Model Configuration
+
+### Open-Source Models
+
+The framework automatically handles:
+- **Model downloading** from HuggingFace Hub
+- **Prompt formatting** for different model families
+- **Inference optimization** via vLLM
+- **Memory management** and cleanup
+
+### Model-Specific Settings
+
+Each model has pre-configured:
+- **Context windows** (8K-32K tokens)
+- **Temperature** (0.0 for deterministic)
+- **Max tokens** (1200 default)
+- **Prompt templates** (Mistral, Qwen, Llama formats)
+
+### Custom Models
+
+Add custom models by modifying `src/storymode/models.py`:
+
+```python
+"my-custom-model": ModelConfig(
+    name="my-custom-model",
+    backend="vLLM",
+    model_path="path/to/model",
+    temperature=0.0,
+    max_tokens=1200,
+    # ... other settings
+)
 ```
 
-### 3. Test the CLI
-```bash
-# From the project root directory
-python -c "import sys; sys.path.append('src'); from storymode.cli import app; print('CLI ready!')"
+## Data Format
+
+### Input Reports
+Plain text files (`.txt`) containing radiology reports:
+```
+EXAM: CT CHEST/ABDOMEN/PELVIS WITH IV CONTRAST
+IMPRESSION:
+1. Left upper lobe mass measures 28 mm (previously 22 mm).
+2. Enlarged right paratracheal node (station 4R) short axis 12 mm.
+3. New 9 mm hypodense lesion in segment 6 of the liver.
 ```
 
-## Quickstart
-Extract JSON from example reports using a local or hosted LLM (OpenAI-style API supported).
-
-```bash
-# Run extraction
-python -m storymode.cli extract \  --in_dir data/examples/reports \  --out_dir runs/example_json \  --model gpt-4o-mini \  --max_workers 4
-
-# Evaluate (requires provided references for examples)
-python -m storymode.cli eval \  --pred_dir runs/example_json \  --ref_dir data/examples/labels
+### Output JSON
+Structured extraction following the schema:
+```json
+{
+  "summary": {
+    "modality": "CT",
+    "body_region": "CAP",
+    "metastasis_present": true,
+    "total_lesion_count": 3
+  },
+  "lesions": [
+    {
+      "lesion_id": "L1",
+      "finding_type": "primary",
+      "body_site": "lung upper lobe",
+      "laterality": "left",
+      "size_mm": 28,
+      "evidence_span": "Left upper lobe mass measures 28 mm"
+    }
+  ]
+}
 ```
 
-## Repo layout
-```
-storymode/
-  data/examples/
-    reports/                 # sample synthetic reports (.txt)
-    labels/                  # matching JSON labels to the schema
-  src/storymode/
-    schema.py                # Pydantic models + JSON Schema
-    prompts.py               # system + few-shot exemplars
-    decode.py                # constrained JSON decoding + repair loop
-    extract.py               # core pipeline (prompt -> JSON -> postprocess)
-    postprocess.py           # unit normalization, ontology hooks, dedupe
-    eval.py                  # metrics
-    cli.py                   # CLI (extract/eval)
-    utils.py                 # logging, IO, timing helpers
-  tests/
-    test_validation.py
-  requirements.txt
-  pyproject.toml (optional)
-```
+## Performance Considerations
 
-## Notes
-- JSON outputs are strictly in **millimeters** for size fields.
-- Each numeric field should include an `evidence_span` pointing back to source text when possible.
-- This repository is model-agnostic. It provides an OpenAI-compatible client and a hook to plug your own inference function.
+### Hardware Requirements
+
+- **7B models**: 16GB+ GPU memory
+- **14B models**: 24GB+ GPU memory  
+- **Mixtral 8×7B**: 24GB+ GPU memory
+- **CPU inference**: Available but slow
+
+### Optimization Tips
+
+1. **Use vLLM** for best performance
+2. **Batch processing** for multiple reports
+3. **Model quantization** for memory efficiency
+4. **Context chunking** for long reports
+
+## Research Use
+
+This framework is designed for:
+- **Reproducible evaluation** of extraction models
+- **A/B testing** different model families
+- **Domain adaptation** studies (biomedical vs general)
+- **Prompt engineering** experiments
+
+### Evaluation Metrics
+
+- **Entity-level F1** for lesion detection
+- **Numeric accuracy** for size measurements
+- **Document-level classification** for metastasis presence
+- **Inter-rater reliability** (ICC) for continuous variables
+
+## License
+
+[Add your license information here]
+
+## Citation
+
+[Add citation information if applicable]
